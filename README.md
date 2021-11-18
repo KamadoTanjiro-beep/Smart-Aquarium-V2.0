@@ -29,3 +29,6 @@ D6 --> In3 <br/>
 D7 --> In4 <br/>
 
 For GND and VCC, use appropriate separate power supply (don't take power from NodeMCU, may burn). If you are using separate powersupplies for NodeMCU and Relay, then make sure to connect both the GNDs of Node and Powersupply together, else the relay module won't work.
+
+-Parts:
+![Relay Board](https://m.media-amazon.com/images/I/71TWos73PrL._SL1100_.jpg)
