@@ -1,4 +1,5 @@
 /*
+<<<<<<< HEAD
    Initial Beta Version
    V1.0 OTA update, oled connection, wifi icons, connection/disconnecyion and WiFi signal strength display 15/11/21
    v1.2 Added DS3231 for back time keeping, added a way to power up when there is no wifi signal 16/11/21
@@ -6,6 +7,13 @@
    v1.4 Added relay initialization function (helpful after powerloss), WEB SERVER (for controlling relays, needs update), further optimizations 25/11/21
 */
 
+=======
+ * Initial Beta Version
+ * V1.0 OTA update, oled connection, wifi icons, connection/disconnecyion and WiFi signal strength display 15/11/21
+ * v1.2 Added DS3231 for back time keeping, added a way to power up when there is no wifi signal 16/11/21
+ * v1.3 Added relays (4 channel active-low) 18/11/21
+ */
+>>>>>>> a10afb9263291983b7f74a34fae3511503fb587f
 #include <SPI.h>
 #include <Wire.h>
 #include <Adafruit_GFX.h>
@@ -23,8 +31,13 @@ bool h12Flag = false;
 bool pmFlag;
 
 #ifndef STASSID
+<<<<<<< HEAD
 #define STASSID "XXXXX"
 #define STAPSK "YYYYYYYYYY"
+=======
+#define STASSID "YOUR WIFI NAME"
+#define STAPSK "YOUR WIFI PASSWORD"
+>>>>>>> a10afb9263291983b7f74a34fae3511503fb587f
 #endif
 
 const char *ssid = STASSID;
@@ -88,7 +101,7 @@ static const unsigned char PROGMEM wifiNo[] = {
     0x00, 0x00, 0x00, 0x00, 0x07, 0xE0, 0x7F, 0xFC, 0x78, 0x0E, 0xFC, 0x07, 0x4F, 0xE2, 0x1F, 0xB8,
     0x19, 0xD8, 0x03, 0xE0, 0x07, 0xF8, 0x00, 0x08, 0x01, 0x80, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00};
 
-const unsigned char picture[] PROGMEM = {
+const unsigned char picture[] PROGMEM = {                             //picture of window
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
