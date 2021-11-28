@@ -1,5 +1,7 @@
 # Aquarium Automation using NodeMCU 12E
 
+FOR ANY KIND OF QUESTIONS OR QUERIES PLEASE CONTACT ME HERE: https://aniketpatra.pythonanywhere.com/contact
+
 Using NodeMCU for aquarium lights control with OTA and WiFi signal level icons.
 
 I take no responsibility for the use of this code. Use it with your own risk. 
@@ -8,7 +10,7 @@ I take no responsibility for the use of this code. Use it with your own risk.
 
 For DS3231 Library use https://github.com/NorthernWidget/DS3231/releases
 
-Rest of the libraries can be downloaded within Arduino IDE Libraries Manager, and some of them are already included. Please google for "how-to" if you cannot figure it out.
+Rest of the libraries can be downloaded within Arduino IDE Libraries Manager, and some of them are already included. Please google for "how-to" if you cannot figure it out 
 
 Please add http://arduino.esp8266.com/stable/package_esp8266com_index.json in File --> Preferences --> Additional Boards Manager URLs to get support for all ESP Boards.
 
