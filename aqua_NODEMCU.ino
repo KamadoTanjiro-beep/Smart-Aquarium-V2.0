@@ -1,19 +1,32 @@
 /*
-<<<<<<< HEAD
+  The MIT License (MIT)
+ * Copyright (c) by respective library files owners
+ * Copyright (c) 2021 by Aniket Patra
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+   
    Initial Beta Version
-   V1.0 OTA update, oled connection, wifi icons, connection/disconnecyion and WiFi signal strength display 15/11/21
+   V1.0 OTA update, oled connection, wifi icons(connection/disconnection and WiFi signal strength display) 15/11/21
    v1.2 Added DS3231 for back time keeping, added a way to power up when there is no wifi signal 16/11/21
    v1.3 Added relays to the circuit (4 channel active-low) 17/11/21
-   v1.4 Added relay initialization function (helpful after powerloss), WEB SERVER (for controlling relays, needs update), further optimizations 25/11/21
+   v1.4 Added relay initialization function (helpful after powerloss), WEB SERVER (for controlling relays, getting temperature and time), further optimizations 25/11/21
+   v1.5 Added control to turn off/on oled display as you want (via Web Server) 09/12/21
 */
 
-=======
- * Initial Beta Version
- * V1.0 OTA update, oled connection, wifi icons, connection/disconnecyion and WiFi signal strength display 15/11/21
- * v1.2 Added DS3231 for back time keeping, added a way to power up when there is no wifi signal 16/11/21
- * v1.3 Added relays (4 channel active-low) 18/11/21
- */
->>>>>>> a10afb9263291983b7f74a34fae3511503fb587f
 #include <SPI.h>
 #include <Wire.h>
 #include <Adafruit_GFX.h>
@@ -31,13 +44,8 @@ bool h12Flag = false;
 bool pmFlag;
 
 #ifndef STASSID
-<<<<<<< HEAD
-#define STASSID "XXXXX"
-#define STAPSK "YYYYYYYYYY"
-=======
-#define STASSID "YOUR WIFI NAME"
-#define STAPSK "YOUR WIFI PASSWORD"
->>>>>>> a10afb9263291983b7f74a34fae3511503fb587f
+#define STASSID "XXXXXXXXXXXXXXXX"
+#define STAPSK "XXXXXXXXXXX"
 #endif
 
 const char *ssid = STASSID;
@@ -101,7 +109,7 @@ static const unsigned char PROGMEM wifiNo[] = {
     0x00, 0x00, 0x00, 0x00, 0x07, 0xE0, 0x7F, 0xFC, 0x78, 0x0E, 0xFC, 0x07, 0x4F, 0xE2, 0x1F, 0xB8,
     0x19, 0xD8, 0x03, 0xE0, 0x07, 0xF8, 0x00, 0x08, 0x01, 0x80, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00};
 
-const unsigned char picture[] PROGMEM = {                             //picture of window
+const unsigned char picture[] PROGMEM = { //picture of window
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -173,6 +181,8 @@ const int relayPin3 = 13;
 const int relayPin4 = 14;
 
 byte R1Flag = 0, R2Flag = 0, R3Flag = 0, R4Flag = 0;
+byte OLEDConfig = 1; //Config=1 means auto (based on timer),Config=0 means Manual.
+byte OLEDStatus = 1; //Status = 1 means OLED DISPLAY is ON and reversed for 0 (works only if Config is 0)
 
 //Relay activation
 #define RELAY1 true //mark true to activate, and false to deactivate
@@ -201,8 +211,8 @@ byte R1Flag = 0, R2Flag = 0, R3Flag = 0, R4Flag = 0;
 #define RELAY4OFF digitalWrite(relayPin4, LOW)
 
 //oled display off at night timings (needs improvement)
-#define OLED_OFF 0 //hour only in 24 hours mode i.e. 23 for 11 pm
-#define OLED_ON 8
+#define OLED_OFF 19 //hour only in 24 hours mode i.e. 23 for 11 pm
+#define OLED_ON 7
 
 String newHostname = "AquariumNode";
 
@@ -471,13 +481,39 @@ void loop()
     showWifiSignal(); //at (112,0), wifi sampling once in 900 m.seconds
     relayStatusPrinter();
 
-    if ((Clock.getHour(h12Flag, pmFlag) >= OLED_OFF) && (Clock.getHour(h12Flag, pmFlag) < OLED_ON)) //oled display turn of at night
+    if (OLEDConfig == 0) //Automatic/Manual Control of OLED Display
     {
-      display.clearDisplay();
-      display.display();
+
+      if (OLEDStatus == 0)
+      {
+        display.clearDisplay();
+        display.display();
+      }
+      else
+        display.display();
     }
-    else
-      display.display();
+    else if (OLEDConfig == 1)
+    {
+      byte tempH = Clock.getHour(h12Flag, pmFlag); //stores current hour temporarily
+      if (OLED_OFF > OLED_ON)
+      {
+        if ((tempH >= OLED_OFF) || (tempH < OLED_ON))
+        {
+          display.clearDisplay();
+          display.display();
+        }
+        else
+          display.display();
+      }
+      else if ((tempH >= OLED_OFF) && (tempH < OLED_ON)) //oled display turn of at night
+      {
+        display.clearDisplay();
+        display.display();
+      }
+      else
+        display.display();
+    }
+
     lastTime1 = millis();
   }
 }
@@ -585,16 +621,66 @@ void checkTimeFor(int onTime, int offTime, int number)
   int h = Clock.getHour(h12Flag, pmFlag);
   int m = Clock.getMinute();
 
-  int timeString = h * 100 + m;
+  int timeString = h * 100 + m; //if h=12 and m=23 then 12*100 + 23 = 1223 hours
 
   if (offTime < onTime)
   {
-    int temp = offTime;
-    offTime = onTime;
-    onTime = temp;
+    if ((timeString > onTime) || (timeString <= offTime))
+    {
+      if (number == 1)
+      {
+        R1Flag = 1;
+        RELAY1ON;
+        Relay1State = "on";
+      }
+      else if (number == 2)
+      {
+        R2Flag = 1;
+        RELAY2ON;
+        Relay2State = "on";
+      }
+      else if (number == 3)
+      {
+        R3Flag = 1;
+        RELAY3ON;
+        Relay3State = "on";
+      }
+      else if (number == 4)
+      {
+        R4Flag = 1;
+        RELAY4ON;
+        Relay4State = "on";
+      }
+    }
+    else
+    {
+      if (number == 1)
+      {
+        R1Flag = 0;
+        RELAY1OFF;
+        Relay1State = "off";
+      }
+      else if (number == 2)
+      {
+        R2Flag = 0;
+        RELAY2ON;
+        Relay2State = "off";
+      }
+      else if (number == 3)
+      {
+        R3Flag = 0;
+        RELAY3ON;
+        Relay3State = "off";
+      }
+      else if (number == 4)
+      {
+        R4Flag = 0;
+        RELAY4ON;
+        Relay4State = "off";
+      }
+    }
   }
-
-  if ((timeString > onTime) && (timeString <= offTime))
+  else if ((timeString > onTime) && (timeString <= offTime))
   {
     if (number == 1)
     {
@@ -760,6 +846,14 @@ void clientPage(WiFiClient client, String currentLine)
             R4Flag = 0;
             RELAY4OFF;
           }
+          else if (header.indexOf("GET /5/on") >= 0)
+            OLEDConfig = 1;
+          else if (header.indexOf("GET /5/off") >= 0)
+            OLEDConfig = 0;
+          else if (header.indexOf("GET /6/off") >= 0)
+            OLEDStatus = 1;
+          else if (header.indexOf("GET /6/on") >= 0)
+            OLEDStatus = 0;
 
           // Display the HTML web page
           client.print("<!DOCTYPE html><html lang=\"en\">");
@@ -814,12 +908,26 @@ void clientPage(WiFiClient client, String currentLine)
           // If the output4State is off, it displays the ON button
           if (Relay4State == "off")
           {
-            client.print("<p><a href=\"/4/on\"><button type=\"button\" class=\"btn btn-outline-success\">ON</button></a></p></div></div></div>");
+            client.print("<p><a href=\"/4/on\"><button type=\"button\" class=\"btn btn-outline-success\">ON</button></a></p></div>");
           }
           else
           {
-            client.print("<p><a href=\"/4/off\"><button type=\"button\" class=\"btn btn-outline-danger\">OFF</button></a></p></div></div></div>");
+            client.print("<p><a href=\"/4/off\"><button type=\"button\" class=\"btn btn-outline-danger\">OFF</button></a></p></div>");
           }
+          client.print("<div class=\"col-6\"><p class=\"text-white bg-dark pl-1 pr-1 p-1\">Temperature</p><p class=\"bg-info\">" + String(Clock.getTemperature()) + " &deg;C</p></div>");
+          client.print("<div class=\"col-6\"><p class=\"text-white bg-dark pl-1 pr-1 p-1\">Time</p><p class=\"bg-info\">" + String(Clock.getHour(h12Flag, pmFlag)) + ":" + String(Clock.getMinute()) + ":" + String(Clock.getSecond()) + "</p></div>");
+          client.print("<div class=\"col-6\"><p class=\"text-white bg-dark pl-1 pr-1 p-1\">OLED Display</p><div class=\"row\"><div class=\"col\">");
+          if (OLEDConfig == 0)
+          {
+            client.print("<p><a href=\"/5/on\"><button type=\"button\" class=\"btn btn-outline-danger\">Manual</button></a></p></div>");
+            if (OLEDStatus == 0)
+              client.print("<div class=\"col\"><p><a href=\"/6/off\"><button type=\"button\" class=\"btn btn-outline-danger\">OFF</button></a></p></div></div></div></div></div>");
+            else
+              client.print("<div class=\"col\"><p><a href=\"/6/on\"><button type=\"button\" class=\"btn btn-outline-success\">ON</button></a></p></div></div></div></div></div>");
+          }
+          else
+            client.print("<p><a href=\"/5/off\"><button type=\"button\" class=\"btn btn-outline-success\">Auto</button></a></p></div><div class=\"col\"><p><a href=\"\"><button type=\"button\" class=\"btn btn-outline-danger\" disabled>DISABLED</button></a></p></div></div></div></div></div>");
+
           client.print("<script src=\"https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js\" integrity=\"sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM\" crossorigin=\"anonymous\"></script>");
           client.print("</body></html>");
 
