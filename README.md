@@ -53,4 +53,4 @@ Other parts as required
 
 WEB SERVER
 
-<img src="https://www.electronicscomp.com/image/cache/catalog/13-inch-i2c-iic-oled-display-module-4pin-white-800x800.jpg" alt="OLED" width="200" height="200"> <br/>
+<img src="https://github.com/aniket-patra/aqua_NODEMCU/blob/main/aa.jpg" alt="OLED" width="200" height="200"> <br/>
