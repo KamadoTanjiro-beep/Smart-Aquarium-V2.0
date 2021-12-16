@@ -53,4 +53,4 @@ Other parts as required
 
 WEB SERVER
 
-<img src="https://github.com/aniket-patra/aqua_NODEMCU/blob/main/aa.jpg" alt="OLED" width="200" height="200"> <br/>
+<img src="https://github.com/aniket-patra/aqua_NODEMCU/blob/main/aa.jpg" alt="OLED" width="400" height="200"> <br/>
