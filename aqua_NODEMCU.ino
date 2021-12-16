@@ -25,6 +25,8 @@
    v1.3 Added relays to the circuit (4 channel active-low) 17/11/21
    v1.4 Added relay initialization function (helpful after powerloss), WEB SERVER (for controlling relays, getting temperature and time), further optimizations 25/11/21
    v1.5 Added control to turn off/on oled display as you want (via Web Server) 09/12/21
+   v1.6 Added control to turn off/on Aqaurium Light as you want (via Web Server). Previously the timer would overwrite the settings. {Needs optimization for restarts} 14/12/21
+   v1.7 Optimizations for timers {Still needs optimizations} 16/12/21
 */
 
 #include <SPI.h>
@@ -44,8 +46,8 @@ bool h12Flag = false;
 bool pmFlag;
 
 #ifndef STASSID
-#define STASSID "XXXXXXXXXXXXXXXX"
-#define STAPSK "XXXXXXXXXXX"
+#define STASSID "XXXXXXXXXXX"  //your wifi ssid/name
+#define STAPSK "XXXXXXXXXXXXX" //your wifi password
 #endif
 
 const char *ssid = STASSID;
@@ -181,8 +183,8 @@ const int relayPin3 = 13;
 const int relayPin4 = 14;
 
 byte R1Flag = 0, R2Flag = 0, R3Flag = 0, R4Flag = 0;
-byte OLEDConfig = 1; //Config=1 means auto (based on timer),Config=0 means Manual.
-byte OLEDStatus = 1; //Status = 1 means OLED DISPLAY is ON and reversed for 0 (works only if Config is 0)
+byte OLEDConfig = 1, lightConfig = 1; //Config=1 means auto (based on timer),Config=0 means Manual. Same for aquarium light
+byte OLEDStatus = 1;                  //Status = 1 means OLED DISPLAY is ON and reversed for 0 (works only if Config is 0)
 
 //Relay activation
 #define RELAY1 true //mark true to activate, and false to deactivate
@@ -454,11 +456,17 @@ void loop()
 
   if ((millis() - lastTime) > timerDelay)
   {
-    timerDelay = 60000;
-    // check relay status every 60 seconds
-    if (RELAY1)
+    timerDelay = 30000; // check relay status every 30 seconds
+
+    if (lightConfig == 0)
     {
-      checkTimeFor(RELAY1TIME);
+    }
+    else
+    {
+      if (RELAY1)
+      {
+        checkTimeFor(RELAY1TIME);
+      }
     }
     if (RELAY2)
     {
@@ -494,24 +502,27 @@ void loop()
     }
     else if (OLEDConfig == 1)
     {
-      byte tempH = Clock.getHour(h12Flag, pmFlag); //stores current hour temporarily
+      byte currTime = Clock.getHour(h12Flag, pmFlag); //stores current hour temporarily
       if (OLED_OFF > OLED_ON)
       {
-        if ((tempH >= OLED_OFF) || (tempH < OLED_ON))
+        if ((currTime >= OLED_ON) && (currTime <= OLED_OFF))
+          display.display();
+        else
         {
           display.clearDisplay();
           display.display();
         }
-        else
-          display.display();
-      }
-      else if ((tempH >= OLED_OFF) && (tempH < OLED_ON)) //oled display turn of at night
-      {
-        display.clearDisplay();
-        display.display();
       }
       else
-        display.display();
+      {
+        if (((currTime >= OLED_ON) && (currTime >= OLED_OFF)) || ((currTime <= OLED_ON) && (currTime <= OLED_OFF))) //oled display turn of at night
+          display.display();
+        else
+        {
+          display.clearDisplay();
+          display.display();
+        }
+      }
     }
 
     lastTime1 = millis();
@@ -623,9 +634,9 @@ void checkTimeFor(int onTime, int offTime, int number)
 
   int timeString = h * 100 + m; //if h=12 and m=23 then 12*100 + 23 = 1223 hours
 
-  if (offTime < onTime)
+  if (offTime > onTime)
   {
-    if ((timeString > onTime) || (timeString <= offTime))
+    if ((timeString > onTime) && (timeString < offTime))
     {
       if (number == 1)
       {
@@ -680,58 +691,61 @@ void checkTimeFor(int onTime, int offTime, int number)
       }
     }
   }
-  else if ((timeString > onTime) && (timeString <= offTime))
-  {
-    if (number == 1)
-    {
-      R1Flag = 1;
-      RELAY1ON;
-      Relay1State = "on";
-    }
-    else if (number == 2)
-    {
-      R2Flag = 1;
-      RELAY2ON;
-      Relay2State = "on";
-    }
-    else if (number == 3)
-    {
-      R3Flag = 1;
-      RELAY3ON;
-      Relay3State = "on";
-    }
-    else if (number == 4)
-    {
-      R4Flag = 1;
-      RELAY4ON;
-      Relay4State = "on";
-    }
-  }
   else
   {
-    if (number == 1)
+    if (((timeString > onTime) && (timeString > offTime)) || ((timeString < onTime) && (timeString < offTime)))
     {
-      R1Flag = 0;
-      RELAY1OFF;
-      Relay1State = "off";
+      if (number == 1)
+      {
+        R1Flag = 1;
+        RELAY1ON;
+        Relay1State = "on";
+      }
+      else if (number == 2)
+      {
+        R2Flag = 1;
+        RELAY2ON;
+        Relay2State = "on";
+      }
+      else if (number == 3)
+      {
+        R3Flag = 1;
+        RELAY3ON;
+        Relay3State = "on";
+      }
+      else if (number == 4)
+      {
+        R4Flag = 1;
+        RELAY4ON;
+        Relay4State = "on";
+      }
     }
-    else if (number == 2)
+    else
     {
-      R2Flag = 0;
-      RELAY2ON;
-      Relay2State = "off";
-    }
-    else if (number == 3)
-    {
-      R3Flag = 0;
-      RELAY3ON;
-      Relay3State = "off";
-    }
-    else if (number == 4)
-    {
-      R4Flag = 0;
-      RELAY4ON;
-      Relay4State = "off";
+      if (number == 1)
+      {
+        R1Flag = 0;
+        RELAY1OFF;
+        Relay1State = "off";
+      }
+      else if (number == 2)
+      {
+        R2Flag = 0;
+        RELAY2ON;
+        Relay2State = "off";
+      }
+      else if (number == 3)
+      {
+        R3Flag = 0;
+        RELAY3ON;
+        Relay3State = "off";
+      }
+      else if (number == 4)
+      {
+        R4Flag = 0;
+        RELAY4ON;
+        Relay4State = "off";
+      }
     }
   }
 }
@@ -790,12 +804,15 @@ void clientPage(WiFiClient client, String currentLine)
           client.println();
 
           // turns the GPIOs on and off
-          if (header.indexOf("GET /1/on") >= 0)
+          if (header.indexOf("GET /0/on") >= 0)
+            lightConfig = 1;
+          else if (header.indexOf("GET /0/off") >= 0)
+            lightConfig = 0;
+          else if (header.indexOf("GET /1/on") >= 0)
           {
             Relay1State = "on";
             R1Flag = 1;
             RELAY1ON;
-            timerDelay = 65000;
           }
           else if (header.indexOf("GET /1/off") >= 0)
           {
@@ -870,16 +887,18 @@ void clientPage(WiFiClient client, String currentLine)
           client.print("<body><div class=\"container\"><div class=\"row\"><h1 class=\"display-4 pb-3\"><u>Aquarium Web Server</u></h1>");
 
           // Display current state, and ON/OFF buttons for Relay 1
-          client.print("<div class=\"col-6\"><p class=\"text-white bg-dark pl-1 pr-1 p-1\">Relay 1 - " + Relay1State + "</p>");
-          // If the output5State is off, it displays the ON button
-          if (Relay1State == "off")
+          client.print("<div class=\"col-6\"><p class=\"text-white bg-dark pl-1 pr-1 p-1\">Relay 1 - " + Relay1State + "</p><div class=\"row\"><div class=\"col\">");
+          // If the AQUA LIGHT is off, it displays the ON button
+          if (lightConfig == 0)
           {
-            client.print("<p><a href=\"/1/on\"><button type=\"button\" class=\"btn btn-outline-success\">ON</button></a></p></div>");
+            client.print("<p><a href=\"/0/on\"><button type=\"button\" class=\"btn btn-outline-danger\">Manual</button></a></p></div>");
+            if (Relay1State == "off")
+              client.print("<div class=\"col\"><p><a href=\"/1/on\"><button type=\"button\" class=\"btn btn-outline-danger\">OFF</button></a></p></div></div></div>");
+            else
+              client.print("<div class=\"col\"><p><a href=\"/1/off\"><button type=\"button\" class=\"btn btn-outline-success\">ON</button></a></p></div></div></div>");
           }
           else
-          {
-            client.print("<p><a href=\"/1/off\"><button type=\"button\" class=\"btn btn-outline-danger\">OFF</button></a></p></div>");
-          }
+            client.print("<p><a href=\"/0/off\"><button type=\"button\" class=\"btn btn-outline-success\">Auto</button></a></p></div><div class=\"col\"><p><a href=\"\"><button type=\"button\" class=\"btn btn-outline-danger\" disabled>DISABLED</button></a></p></div></div></div>");
 
           // Display current state, and ON/OFF buttons for Relay 2
           client.print("<div class=\"col-6\"><p class=\"text-white bg-dark pl-1 pr-1 p-1\">Relay 2 - " + Relay2State + "</p>");
