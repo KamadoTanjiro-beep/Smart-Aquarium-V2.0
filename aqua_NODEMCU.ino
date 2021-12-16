@@ -46,8 +46,8 @@ bool h12Flag = false;
 bool pmFlag;
 
 #ifndef STASSID
-#define STASSID "XXXXXXXXXXX"  //your wifi ssid/name
-#define STAPSK "XXXXXXXXXXXXX" //your wifi password
+#define STASSID "XXXXXXXX"  //WIFI NAME/SSID
+#define STAPSK "XXXXXXXXXX" //WIFI PASSWORD
 #endif
 
 const char *ssid = STASSID;

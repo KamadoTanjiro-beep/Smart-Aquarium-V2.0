@@ -4,13 +4,13 @@ FOR ANY KIND OF QUESTIONS OR QUERIES PLEASE CONTACT ME HERE: https://aniketpatra
 
 Using NodeMCU for aquarium lights control with OTA and WiFi signal level icons.
 
-I take no responsibility for the use of this code. Use it with your own risk. 
+I take no responsibility for the use of this code. Use it with your own risk.
 
 ##It works as switches which turns something on or off. This can be applied to varied of things and can be expanded as automatic dosers, automatic water changes, etc (limited by your imagination😂).
 
 For DS3231 Library use https://github.com/NorthernWidget/DS3231/releases
 
-Rest of the libraries can be downloaded within Arduino IDE Libraries Manager, and some of them are already included. Please google for "how-to" if you cannot figure it out 
+Rest of the libraries can be downloaded within Arduino IDE Libraries Manager, and some of them are already included. Please google for "how-to" if you cannot figure it out
 
 Please add http://arduino.esp8266.com/stable/package_esp8266com_index.json in File --> Preferences --> Additional Boards Manager URLs to get support for all ESP Boards.
 
@@ -43,12 +43,14 @@ For GND and VCC, use appropriate separate power supply (don't take power from No
 <img src="https://m.media-amazon.com/images/I/41RP9FjC+jL.jpg" alt="DS3231" width="200" height="200"> <br/>
 DS3231 AT24C32 IIC Precision RTC <br/><br/>
 
-
 <img src="https://m.media-amazon.com/images/I/51lIrI5vnQL.jpg" alt="NodeMCU" width="200" height="200"> <br/>
 NodeMCU-ESP8266 Development Board ESP12E <br/><br/>
- 
- 
- <img src="https://www.electronicscomp.com/image/cache/catalog/13-inch-i2c-iic-oled-display-module-4pin-white-800x800.jpg" alt="OLED" width="200" height="200"> <br/>
+
+<img src="https://www.electronicscomp.com/image/cache/catalog/13-inch-i2c-iic-oled-display-module-4pin-white-800x800.jpg" alt="OLED" width="200" height="200"> <br/>
 1.3 Inch I2C IIC 128x64 OLED Display Module 4 Pin - White <br/><br/>
 
 Other parts as required
+
+WEB SERVER
+
+<img src="https://www.electronicscomp.com/image/cache/catalog/13-inch-i2c-iic-oled-display-module-4pin-white-800x800.jpg" alt="OLED" width="200" height="200"> <br/>
