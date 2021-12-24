@@ -27,6 +27,8 @@
    v1.5 Added control to turn off/on oled display as you want (via Web Server) 09/12/21
    v1.6 Added control to turn off/on Aqaurium Light as you want (via Web Server). Previously the timer would overwrite the settings. {Needs optimization for restarts} 14/12/21
    v1.7 Optimizations for timers {Still needs optimizations} 16/12/21
+   v1.71 Bug updates 21/12/21
+   v1.8 Added Auto/Manual Control for all relays. Updates to HTML of Web Server.
 */
 
 #include <SPI.h>
@@ -46,8 +48,8 @@ bool h12Flag = false;
 bool pmFlag;
 
 #ifndef STASSID
-#define STASSID "XXXXXXXX"  //WIFI NAME/SSID
-#define STAPSK "XXXXXXXXXX" //WIFI PASSWORD
+#define STASSID "XXXXXXXXXXXXXXX" //WIFI NAME/SSID
+#define STAPSK "YYYYYYYYYYY"      //WIFI PASSWORD
 #endif
 
 const char *ssid = STASSID;
@@ -111,7 +113,7 @@ static const unsigned char PROGMEM wifiNo[] = {
     0x00, 0x00, 0x00, 0x00, 0x07, 0xE0, 0x7F, 0xFC, 0x78, 0x0E, 0xFC, 0x07, 0x4F, 0xE2, 0x1F, 0xB8,
     0x19, 0xD8, 0x03, 0xE0, 0x07, 0xF8, 0x00, 0x08, 0x01, 0x80, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00};
 
-const unsigned char picture[] PROGMEM = { //picture of window
+const unsigned char picture[] PROGMEM = { //picture of a window
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -183,20 +185,20 @@ const int relayPin3 = 13;
 const int relayPin4 = 14;
 
 byte R1Flag = 0, R2Flag = 0, R3Flag = 0, R4Flag = 0;
-byte OLEDConfig = 1, lightConfig = 1; //Config=1 means auto (based on timer),Config=0 means Manual. Same for aquarium light
-byte OLEDStatus = 1;                  //Status = 1 means OLED DISPLAY is ON and reversed for 0 (works only if Config is 0)
+byte OLEDConfig = 1, R1Config = 1, R2Config = 1, R3Config = 1, R4Config = 1; //Config=1 means auto (based on timer),Config=0 means Manual. Same for aquarium light
+byte OLEDStatus = 1;                                                         //Status = 1 means OLED DISPLAY is ON and reversed for 0 (works only if Config is 0)
 
 //Relay activation
-#define RELAY1 true //mark true to activate, and false to deactivate
+#define RELAY1 false //mark true to activate, and false to deactivate (activation means the timer activation)
 #define RELAY2 false
 #define RELAY3 false
-#define RELAY4 false
+#define RELAY4 true
 /*
    Relay Definition
    first two arguments are RELAY ON Timings as hour, min and next two are off timings, and the 5th or the last argument is relay number
    for example, to turn on Relay 1 at 12 PM or 12 Hours and turn it off at 7 PM or 19 Hours use (12, 00, 19, 00, 1)
 */
-#define RELAY1TIME 1200, 1900, 1               //first three arguments are RELAY ON Timings as h, m, s, and next three are off timings, and the 7th or the last argument is relay number
+#define RELAY1TIME 1100, 1900, 1               //first three arguments are RELAY ON Timings as h, m, s, and next three are off timings, and the 7th or the last argument is relay number
 #define RELAY1ON digitalWrite(relayPin1, HIGH) //for example, to turn on Relay 1 at 12 PM or 12 Hours and turn it off at 7 PM or 19 Hours use (12, 00, 00, 19, 00, 00, 1)
 #define RELAY1OFF digitalWrite(relayPin1, LOW)
 
@@ -208,12 +210,12 @@ byte OLEDStatus = 1;                  //Status = 1 means OLED DISPLAY is ON and 
 #define RELAY3ON digitalWrite(relayPin3, HIGH)
 #define RELAY3OFF digitalWrite(relayPin3, LOW)
 
-#define RELAY4TIME 1200, 1900, 4
+#define RELAY4TIME 1100, 1900, 4
 #define RELAY4ON digitalWrite(relayPin4, HIGH)
 #define RELAY4OFF digitalWrite(relayPin4, LOW)
 
 //oled display off at night timings (needs improvement)
-#define OLED_OFF 19 //hour only in 24 hours mode i.e. 23 for 11 pm
+#define OLED_OFF 9 //Hour only. In 24 hours mode i.e. 23 for 11 pm
 #define OLED_ON 7
 
 String newHostname = "AquariumNode";
@@ -458,7 +460,7 @@ void loop()
   {
     timerDelay = 30000; // check relay status every 30 seconds
 
-    if (lightConfig == 0)
+    if (R1Config == 0)
     {
     }
     else
@@ -468,17 +470,35 @@ void loop()
         checkTimeFor(RELAY1TIME);
       }
     }
-    if (RELAY2)
+    if (R2Config == 0)
     {
-      checkTimeFor(RELAY2TIME);
     }
-    if (RELAY3)
+    else
     {
-      checkTimeFor(RELAY3TIME);
+      if (RELAY2)
+      {
+        checkTimeFor(RELAY2TIME);
+      }
     }
-    if (RELAY4)
+    if (R3Config == 0)
     {
-      checkTimeFor(RELAY4TIME);
+    }
+    else
+    {
+      if (RELAY3)
+      {
+        checkTimeFor(RELAY3TIME);
+      }
+    }
+    if (R4Config == 0)
+    {
+    }
+    else
+    {
+      if (RELAY4)
+      {
+        checkTimeFor(RELAY4TIME);
+      }
     }
     lastTime = millis();
   }
@@ -534,7 +554,7 @@ void showWifiSignal()
   int x = WiFi.RSSI();
   if (WiFi.status() != WL_CONNECTED)
   {
-    display.drawBitmap(112, 0, wifiNo, 16, 16, WHITE);
+    display.drawBitmap(112, 0, wifiNo, 16, 16, WHITE); //No Signal, icon is Wifi with a cross over
   }
   else
   {
@@ -634,7 +654,7 @@ void checkTimeFor(int onTime, int offTime, int number)
 
   int timeString = h * 100 + m; //if h=12 and m=23 then 12*100 + 23 = 1223 hours
 
-  if (offTime > onTime)
+  if (offTime > onTime) //when off timing is greater than on timing
   {
     if ((timeString > onTime) && (timeString < offTime))
     {
@@ -674,19 +694,19 @@ void checkTimeFor(int onTime, int offTime, int number)
       else if (number == 2)
       {
         R2Flag = 0;
-        RELAY2ON;
+        RELAY2OFF;
         Relay2State = "off";
       }
       else if (number == 3)
       {
         R3Flag = 0;
-        RELAY3ON;
+        RELAY3OFF;
         Relay3State = "off";
       }
       else if (number == 4)
       {
         R4Flag = 0;
-        RELAY4ON;
+        RELAY4OFF;
         Relay4State = "off";
       }
     }
@@ -731,19 +751,19 @@ void checkTimeFor(int onTime, int offTime, int number)
       else if (number == 2)
       {
         R2Flag = 0;
-        RELAY2ON;
+        RELAY2OFF;
         Relay2State = "off";
       }
       else if (number == 3)
       {
         R3Flag = 0;
-        RELAY3ON;
+        RELAY3OFF;
         Relay3State = "off";
       }
       else if (number == 4)
       {
         R4Flag = 0;
-        RELAY4ON;
+        RELAY4OFF;
         Relay4State = "off";
       }
     }
@@ -805,9 +825,9 @@ void clientPage(WiFiClient client, String currentLine)
 
           // turns the GPIOs on and off
           if (header.indexOf("GET /0/on") >= 0)
-            lightConfig = 1;
+            R1Config = 1;
           else if (header.indexOf("GET /0/off") >= 0)
-            lightConfig = 0;
+            R1Config = 0;
           else if (header.indexOf("GET /1/on") >= 0)
           {
             Relay1State = "on";
@@ -816,60 +836,67 @@ void clientPage(WiFiClient client, String currentLine)
           }
           else if (header.indexOf("GET /1/off") >= 0)
           {
-            //Serial.println("GPIO 5 off");
             Relay1State = "off";
             R1Flag = 0;
             RELAY1OFF;
           }
-          else if (header.indexOf("GET /2/on") >= 0)
+          if (header.indexOf("GET /2/on") >= 0)
+            R2Config = 1;
+          else if (header.indexOf("GET /2/off") >= 0)
+            R2Config = 0;
+          else if (header.indexOf("GET /3/on") >= 0)
           {
-            //Serial.println("GPIO 4 on");
             Relay2State = "on";
             R2Flag = 1;
             RELAY2ON;
           }
-          else if (header.indexOf("GET /2/off") >= 0)
+          else if (header.indexOf("GET /3/off") >= 0)
           {
-            //Serial.println("GPIO 4 off");
             Relay2State = "off";
             R2Flag = 0;
             RELAY2OFF;
           }
-          else if (header.indexOf("GET /3/on") >= 0)
+          if (header.indexOf("GET /4/on") >= 0)
+            R3Config = 1;
+          else if (header.indexOf("GET /4/off") >= 0)
+            R3Config = 0;
+          else if (header.indexOf("GET /5/on") >= 0)
           {
-            //Serial.println("GPIO 4 off");
             Relay3State = "on";
             R3Flag = 1;
             RELAY3ON;
           }
-          else if (header.indexOf("GET /3/off") >= 0)
+          else if (header.indexOf("GET /5/off") >= 0)
           {
-            //Serial.println("GPIO 4 off");
             Relay3State = "off";
             R3Flag = 0;
             RELAY3OFF;
           }
-          else if (header.indexOf("GET /4/on") >= 0)
+          if (header.indexOf("GET /6/on") >= 0)
+            R4Config = 1;
+          else if (header.indexOf("GET /6/off") >= 0)
+            R4Config = 0;
+          else if (header.indexOf("GET /7/on") >= 0)
           {
             //Serial.println("GPIO 4 off");
             Relay4State = "on";
             R4Flag = 1;
             RELAY4ON;
           }
-          else if (header.indexOf("GET /4/off") >= 0)
+          else if (header.indexOf("GET /7/off") >= 0)
           {
             //Serial.println("GPIO 4 off");
             Relay4State = "off";
             R4Flag = 0;
             RELAY4OFF;
           }
-          else if (header.indexOf("GET /5/on") >= 0)
+          else if (header.indexOf("GET /8/on") >= 0)
             OLEDConfig = 1;
-          else if (header.indexOf("GET /5/off") >= 0)
+          else if (header.indexOf("GET /8/off") >= 0)
             OLEDConfig = 0;
-          else if (header.indexOf("GET /6/off") >= 0)
+          else if (header.indexOf("GET /9/off") >= 0)
             OLEDStatus = 1;
-          else if (header.indexOf("GET /6/on") >= 0)
+          else if (header.indexOf("GET /9/on") >= 0)
             OLEDStatus = 0;
 
           // Display the HTML web page
@@ -887,9 +914,9 @@ void clientPage(WiFiClient client, String currentLine)
           client.print("<body><div class=\"container\"><div class=\"row\"><h1 class=\"display-4 pb-3\"><u>Aquarium Web Server</u></h1>");
 
           // Display current state, and ON/OFF buttons for Relay 1
-          client.print("<div class=\"col-6\"><p class=\"text-white bg-dark pl-1 pr-1 p-1\">Relay 1 - " + Relay1State + "</p><div class=\"row\"><div class=\"col\">");
+          client.print("<div class=\"col-6\"><p class=\"text-white bg-dark pl-1 pr-1 p-1\">PowerHead - " + Relay1State + "</p><div class=\"row\"><div class=\"col\">");
           // If the AQUA LIGHT is off, it displays the ON button
-          if (lightConfig == 0)
+          if (R1Config == 0)
           {
             client.print("<p><a href=\"/0/on\"><button type=\"button\" class=\"btn btn-outline-danger\">Manual</button></a></p></div>");
             if (Relay1State == "off")
@@ -901,51 +928,60 @@ void clientPage(WiFiClient client, String currentLine)
             client.print("<p><a href=\"/0/off\"><button type=\"button\" class=\"btn btn-outline-success\">Auto</button></a></p></div><div class=\"col\"><p><a href=\"\"><button type=\"button\" class=\"btn btn-outline-danger\" disabled>DISABLED</button></a></p></div></div></div>");
 
           // Display current state, and ON/OFF buttons for Relay 2
-          client.print("<div class=\"col-6\"><p class=\"text-white bg-dark pl-1 pr-1 p-1\">Relay 2 - " + Relay2State + "</p>");
+          client.print("<div class=\"col-6\"><p class=\"text-white bg-dark pl-1 pr-1 p-1\">Skimmer - " + Relay2State + "</p><div class=\"row\"><div class=\"col\">");
           // If the output4State is off, it displays the ON button
-          if (Relay2State == "off")
+          if (R2Config == 0)
           {
-            client.print("<p><a href=\"/2/on\"><button type=\"button\" class=\"btn btn-outline-success\">ON</button></a></p></div>");
+            client.print("<p><a href=\"/2/on\"><button type=\"button\" class=\"btn btn-outline-danger\">Manual</button></a></p></div>");
+            if (Relay2State == "off")
+              client.print("<div class=\"col\"><p><a href=\"/3/on\"><button type=\"button\" class=\"btn btn-outline-danger\">OFF</button></a></p></div></div></div>");
+            else
+              client.print("<div class=\"col\"><p><a href=\"/3/off\"><button type=\"button\" class=\"btn btn-outline-success\">ON</button></a></p></div></div></div>");
           }
           else
-          {
-            client.print("<p><a href=\"/2/off\"><button type=\"button\" class=\"btn btn-outline-danger\">OFF</button></a></p></div>");
-          }
+            client.print("<p><a href=\"/2/off\"><button type=\"button\" class=\"btn btn-outline-success\">Auto</button></a></p></div><div class=\"col\"><p><a href=\"\"><button type=\"button\" class=\"btn btn-outline-danger\" disabled>DISABLED</button></a></p></div></div></div>");
+
           // Display current state, and ON/OFF buttons for Relay3
-          client.print("<div class=\"col-6\"><p class=\"text-white bg-dark pl-1 pr-1 p-1\">Relay 3 - " + Relay3State + "</p>");
+          client.print("<div class=\"col-6\"><p class=\"text-white bg-dark pl-1 pr-1 p-1\">Filter - " + Relay3State + "</p><div class=\"row\"><div class=\"col\">");
           // If the output4State is off, it displays the ON button
-          if (Relay3State == "off")
+          if (R3Config == 0)
           {
-            client.print("<p><a href=\"/3/on\"><button type=\"button\" class=\"btn btn-outline-success\">ON</button></a></p></div>");
+            client.print("<p><a href=\"/4/on\"><button type=\"button\" class=\"btn btn-outline-danger\">Manual</button></a></p></div>");
+            if (Relay3State == "off")
+              client.print("<div class=\"col\"><p><a href=\"/5/on\"><button type=\"button\" class=\"btn btn-outline-danger\">OFF</button></a></p></div></div></div>");
+            else
+              client.print("<div class=\"col\"><p><a href=\"/5/off\"><button type=\"button\" class=\"btn btn-outline-success\">ON</button></a></p></div></div></div>");
           }
           else
-          {
-            client.print("<p><a href=\"/3/off\"><button type=\"button\" class=\"btn btn-outline-danger\">OFF</button></a></p></div>");
-          }
+            client.print("<p><a href=\"/4/off\"><button type=\"button\" class=\"btn btn-outline-success\">Auto</button></a></p></div><div class=\"col\"><p><a href=\"\"><button type=\"button\" class=\"btn btn-outline-danger\" disabled>DISABLED</button></a></p></div></div></div>");
+
           // Display current state, and ON/OFF buttons for Relay 4
-          client.print("<div class=\"col-6\"><p class=\"text-white bg-dark pl-1 pr-1 p-1\">Relay 4 - " + Relay4State + "</p>");
+          client.print("<div class=\"col-6\"><p class=\"text-white bg-dark pl-1 pr-1 p-1\">Light - " + Relay4State + "</p><div class=\"row\"><div class=\"col\">");
           // If the output4State is off, it displays the ON button
-          if (Relay4State == "off")
+          if (R4Config == 0)
           {
-            client.print("<p><a href=\"/4/on\"><button type=\"button\" class=\"btn btn-outline-success\">ON</button></a></p></div>");
+            client.print("<p><a href=\"/6/on\"><button type=\"button\" class=\"btn btn-outline-danger\">Manual</button></a></p></div>");
+            if (Relay4State == "off")
+              client.print("<div class=\"col\"><p><a href=\"/7/on\"><button type=\"button\" class=\"btn btn-outline-danger\">OFF</button></a></p></div></div></div>");
+            else
+              client.print("<div class=\"col\"><p><a href=\"/7/off\"><button type=\"button\" class=\"btn btn-outline-success\">ON</button></a></p></div></div></div>");
           }
           else
-          {
-            client.print("<p><a href=\"/4/off\"><button type=\"button\" class=\"btn btn-outline-danger\">OFF</button></a></p></div>");
-          }
+            client.print("<p><a href=\"/6/off\"><button type=\"button\" class=\"btn btn-outline-success\">Auto</button></a></p></div><div class=\"col\"><p><a href=\"\"><button type=\"button\" class=\"btn btn-outline-danger\" disabled>DISABLED</button></a></p></div></div></div>");
+
           client.print("<div class=\"col-6\"><p class=\"text-white bg-dark pl-1 pr-1 p-1\">Temperature</p><p class=\"bg-info\">" + String(Clock.getTemperature()) + " &deg;C</p></div>");
           client.print("<div class=\"col-6\"><p class=\"text-white bg-dark pl-1 pr-1 p-1\">Time</p><p class=\"bg-info\">" + String(Clock.getHour(h12Flag, pmFlag)) + ":" + String(Clock.getMinute()) + ":" + String(Clock.getSecond()) + "</p></div>");
           client.print("<div class=\"col-6\"><p class=\"text-white bg-dark pl-1 pr-1 p-1\">OLED Display</p><div class=\"row\"><div class=\"col\">");
           if (OLEDConfig == 0)
           {
-            client.print("<p><a href=\"/5/on\"><button type=\"button\" class=\"btn btn-outline-danger\">Manual</button></a></p></div>");
+            client.print("<p><a href=\"/8/on\"><button type=\"button\" class=\"btn btn-outline-danger\">Manual</button></a></p></div>");
             if (OLEDStatus == 0)
-              client.print("<div class=\"col\"><p><a href=\"/6/off\"><button type=\"button\" class=\"btn btn-outline-danger\">OFF</button></a></p></div></div></div></div></div>");
+              client.print("<div class=\"col\"><p><a href=\"/9/off\"><button type=\"button\" class=\"btn btn-outline-danger\">OFF</button></a></p></div></div></div></div></div>");
             else
-              client.print("<div class=\"col\"><p><a href=\"/6/on\"><button type=\"button\" class=\"btn btn-outline-success\">ON</button></a></p></div></div></div></div></div>");
+              client.print("<div class=\"col\"><p><a href=\"/9/on\"><button type=\"button\" class=\"btn btn-outline-success\">ON</button></a></p></div></div></div></div></div>");
           }
           else
-            client.print("<p><a href=\"/5/off\"><button type=\"button\" class=\"btn btn-outline-success\">Auto</button></a></p></div><div class=\"col\"><p><a href=\"\"><button type=\"button\" class=\"btn btn-outline-danger\" disabled>DISABLED</button></a></p></div></div></div></div></div>");
+            client.print("<p><a href=\"/8/off\"><button type=\"button\" class=\"btn btn-outline-success\">Auto</button></a></p></div><div class=\"col\"><p><a href=\"\"><button type=\"button\" class=\"btn btn-outline-danger\" disabled>DISABLED</button></a></p></div></div></div></div></div>");
 
           client.print("<script src=\"https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js\" integrity=\"sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM\" crossorigin=\"anonymous\"></script>");
           client.print("</body></html>");
