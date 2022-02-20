@@ -18,7 +18,7 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
-   
+
    Initial Beta Version
    V1.0 OTA update, oled connection, wifi icons(connection/disconnection and WiFi signal strength display) 15/11/21
    v1.2 Added DS3231 for back time keeping, added a way to power up when there is no wifi signal 16/11/21
@@ -29,6 +29,7 @@
    v1.7 Optimizations for timers {Still needs optimizations} 16/12/21
    v1.71 Bug updates 21/12/21
    v1.8 Added Auto/Manual Control for all relays. Updates to HTML of Web Server.
+   v1.9 Added option to update time via web-server and other updates
 */
 
 #include <SPI.h>
@@ -48,8 +49,8 @@ bool h12Flag = false;
 bool pmFlag;
 
 #ifndef STASSID
-#define STASSID "XXXXXXXXXXXXXXX" //WIFI NAME/SSID
-#define STAPSK "YYYYYYYYYYY"      //WIFI PASSWORD
+#define STASSID "XXXXXXXXX" // WIFI NAME/SSID
+#define STAPSK "YYYYYYY"    // WIFI PASSWORD
 #endif
 
 const char *ssid = STASSID;
@@ -90,7 +91,7 @@ NTPClient timeClient(ntpUDP, "asia.pool.ntp.org", utcOffsetInSeconds);
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
 
 #define OLED_RESET LED_BUILTIN // Reset pin # (or -1 if sharing Arduino reset pin)
-#define SCREEN_ADDRESS 0x3C    //0x3c for 0x78
+#define SCREEN_ADDRESS 0x3C    // 0x3c for 0x78
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 static const unsigned char PROGMEM wifiFull[] = {
@@ -113,7 +114,7 @@ static const unsigned char PROGMEM wifiNo[] = {
     0x00, 0x00, 0x00, 0x00, 0x07, 0xE0, 0x7F, 0xFC, 0x78, 0x0E, 0xFC, 0x07, 0x4F, 0xE2, 0x1F, 0xB8,
     0x19, 0xD8, 0x03, 0xE0, 0x07, 0xF8, 0x00, 0x08, 0x01, 0x80, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00};
 
-const unsigned char picture[] PROGMEM = { //picture of a window
+const unsigned char picture[] PROGMEM = { // picture of a window
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -179,17 +180,24 @@ const unsigned char picture[] PROGMEM = { //picture of a window
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
+void checkTimeFor(int, int, int);
+void showWifiSignal();
+void showTime();
+void updateRTC();
+void relayStatusPrinter();
+void clientPage(WiFiClient, String);
+
 const int relayPin1 = 0;
 const int relayPin2 = 12;
 const int relayPin3 = 13;
 const int relayPin4 = 14;
 
 byte R1Flag = 0, R2Flag = 0, R3Flag = 0, R4Flag = 0;
-byte OLEDConfig = 1, R1Config = 1, R2Config = 1, R3Config = 1, R4Config = 1; //Config=1 means auto (based on timer),Config=0 means Manual. Same for aquarium light
-byte OLEDStatus = 1;                                                         //Status = 1 means OLED DISPLAY is ON and reversed for 0 (works only if Config is 0)
+byte OLEDConfig = 1, R1Config = 1, R2Config = 1, R3Config = 1, R4Config = 1; // Config=1 means auto (based on timer),Config=0 means Manual. Same for aquarium light
+byte OLEDStatus = 1, updateTime = 0;                                         // Status = 1 means OLED DISPLAY is ON and reversed for 0 (works only if Config is 0)
 
-//Relay activation
-#define RELAY1 false //mark true to activate, and false to deactivate (activation means the timer activation)
+// Relay activation
+#define RELAY1 false // mark true to activate, and false to deactivate (activation means the timer activation)
 #define RELAY2 false
 #define RELAY3 false
 #define RELAY4 true
@@ -198,8 +206,8 @@ byte OLEDStatus = 1;                                                         //S
    first two arguments are RELAY ON Timings as hour, min and next two are off timings, and the 5th or the last argument is relay number
    for example, to turn on Relay 1 at 12 PM or 12 Hours and turn it off at 7 PM or 19 Hours use (12, 00, 19, 00, 1)
 */
-#define RELAY1TIME 1100, 1900, 1               //first three arguments are RELAY ON Timings as h, m, s, and next three are off timings, and the 7th or the last argument is relay number
-#define RELAY1ON digitalWrite(relayPin1, HIGH) //for example, to turn on Relay 1 at 12 PM or 12 Hours and turn it off at 7 PM or 19 Hours use (12, 00, 00, 19, 00, 00, 1)
+#define RELAY1TIME 1100, 1900, 1 // first number is "ON" time in 24 hours. i.e. 2:35pm would be 1435, second one is turn "OFF" time, and the last one is Relay Number
+#define RELAY1ON digitalWrite(relayPin1, HIGH)
 #define RELAY1OFF digitalWrite(relayPin1, LOW)
 
 #define RELAY2TIME 1200, 1900, 2
@@ -210,17 +218,17 @@ byte OLEDStatus = 1;                                                         //S
 #define RELAY3ON digitalWrite(relayPin3, HIGH)
 #define RELAY3OFF digitalWrite(relayPin3, LOW)
 
-#define RELAY4TIME 1100, 1900, 4
+#define RELAY4TIME 1100, 1700, 4
 #define RELAY4ON digitalWrite(relayPin4, HIGH)
 #define RELAY4OFF digitalWrite(relayPin4, LOW)
 
-//oled display off at night timings (needs improvement)
-#define OLED_OFF 9 //Hour only. In 24 hours mode i.e. 23 for 11 pm
+// oled display off at night timings (needs improvement)
+#define OLED_OFF 9 // Hour only. In 24 hours mode i.e. 23 for 11 pm
 #define OLED_ON 7
 
 String newHostname = "AquariumNode";
 
-void relayInitialize() //checks and initializes all relay in case of powerloss (takes effect only if relay is activated above). Default: Turns ON the relay
+void relayInitialize() // checks and initializes all relay in case of powerloss (takes effect only if relay is activated above). Default: Turns ON the relay
 {
   if (RELAY1)
   {
@@ -282,8 +290,8 @@ void setup()
   if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS))
   {
     Serial.println(F("SSD1306 allocation failed"));
-    for (;;)
-      ; // Don't proceed, loop forever
+    delay(3000);
+    ESP.restart();
   }
   display.clearDisplay();
   display.drawBitmap(0, 0, picture, 128, 64, WHITE);
@@ -298,9 +306,9 @@ void setup()
   display.println(F("Connecting..."));
   display.display();
 
-  //Wifi connection
+  // Wifi connection
   WiFi.mode(WIFI_STA);
-  WiFi.hostname(newHostname.c_str()); //Set new hostname
+  WiFi.hostname(newHostname.c_str()); // Set new hostname
   WiFi.begin(ssid, password);
   int count = 0;
   while (WiFi.waitForConnectResult() != WL_CONNECTED)
@@ -311,11 +319,11 @@ void setup()
     display.println(F("Connection\n\nFailed!"));
     display.display();
     delay(5000);
-    //ESP.restart();
+    // ESP.restart();
     count = 1;
     break;
   }
-  //OTA UPDATE SETTINGS  !! CAUTION !! PROCEED WITH PRECAUTION
+  // OTA UPDATE SETTINGS  !! CAUTION !! PROCEED WITH PRECAUTION
   ArduinoOTA.onStart([]()
                      {
                        String type;
@@ -337,17 +345,14 @@ void setup()
                        display.print("Type: ");
                        display.print(type);
                        display.display();
-                       delay(2000);
-                     });
+                       delay(2000); });
   ArduinoOTA.onEnd([]()
                    {
-                     display.clearDisplay();
-                     display.setTextSize(2);
-                     display.setCursor(15, 25); // Start at top-left corner
-                     display.println(F("Rebooting"));
-                     display.display();
-                     //delay(2000);
-                   });
+    display.clearDisplay();
+    display.setTextSize(2);
+    display.setCursor(15, 25); // Start at top-left corner
+    display.println(F("Rebooting"));
+    display.display(); });
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total)
                         {
                           display.clearDisplay();
@@ -358,8 +363,7 @@ void setup()
                           display.print((progress / (total / 100)));
                           display.setCursor(88, 35);
                           display.print("%");
-                          display.display();
-                        });
+                          display.display(); });
 
   ArduinoOTA.onError([](ota_error_t error)
                      {
@@ -408,10 +412,9 @@ void setup()
                          display.setCursor(0, 10); // Start at top-left corner
                          display.print("End Failed");
                          display.display();
-                       }
-                     });
+                       } });
   ArduinoOTA.begin();
-  //OTA UPDATE END
+  // OTA UPDATE END
 
   display.clearDisplay();
   display.setTextSize(2);
@@ -424,12 +427,12 @@ void setup()
   display.println(WiFi.localIP());
   display.display();
 
-  //checks if wifi connected
+  // checks if wifi connected
   if (count == 0)
   {
-    timeClient.begin(); //NTP time
+    timeClient.begin(); // NTP time
     timeClient.update();
-    //updates external RTC (DS3231) if internet time and stored time varies
+    // updates external RTC (DS3231) if internet time and stored time varies
     if ((Clock.getHour(h12Flag, pmFlag) != timeClient.getHours()) || (Clock.getMinute() != timeClient.getMinutes()))
       updateRTC();
   }
@@ -441,6 +444,12 @@ void loop()
 {
   ArduinoOTA.handle();
   WiFiClient client = server.available(); // Listen for incoming clients
+
+  if (updateTime == 1)
+  {
+    updateRTC();
+    updateTime = 0;
+  }
 
   if (client)
   {                          // If a new client connects
@@ -506,10 +515,10 @@ void loop()
   if ((millis() - lastTime1) > timerDelay1)
   {
     showTime();
-    showWifiSignal(); //at (112,0), wifi sampling once in 900 m.seconds
+    showWifiSignal(); // at (112,0), wifi sampling once in 900 m.seconds
     relayStatusPrinter();
 
-    if (OLEDConfig == 0) //Automatic/Manual Control of OLED Display
+    if (OLEDConfig == 0) // Automatic/Manual Control of OLED Display
     {
 
       if (OLEDStatus == 0)
@@ -522,7 +531,7 @@ void loop()
     }
     else if (OLEDConfig == 1)
     {
-      byte currTime = Clock.getHour(h12Flag, pmFlag); //stores current hour temporarily
+      byte currTime = Clock.getHour(h12Flag, pmFlag); // stores current hour temporarily
       if (OLED_OFF > OLED_ON)
       {
         if ((currTime >= OLED_ON) && (currTime <= OLED_OFF))
@@ -535,7 +544,7 @@ void loop()
       }
       else
       {
-        if (((currTime >= OLED_ON) && (currTime >= OLED_OFF)) || ((currTime <= OLED_ON) && (currTime <= OLED_OFF))) //oled display turn of at night
+        if (((currTime >= OLED_ON) && (currTime >= OLED_OFF)) || ((currTime <= OLED_ON) && (currTime <= OLED_OFF))) // oled display turn of at night
           display.display();
         else
         {
@@ -554,25 +563,27 @@ void showWifiSignal()
   int x = WiFi.RSSI();
   if (WiFi.status() != WL_CONNECTED)
   {
-    display.drawBitmap(112, 0, wifiNo, 16, 16, WHITE); //No Signal, icon is Wifi with a cross over
+    display.setCursor(112, 0);
+    // display.setTextSize(2);
+    display.println(F("!"));
   }
   else
   {
     if (x <= (-80))
     {
-      display.drawBitmap(112, 0, wifiLow, 16, 16, WHITE); //worst signal
+      display.drawBitmap(112, 0, wifiLow, 16, 16, WHITE); // worst signal
     }
     else if ((x <= (-70)) && (x > (-80)))
     {
-      display.drawBitmap(112, 0, wifiHalf, 16, 16, WHITE); //poor signal
+      display.drawBitmap(112, 0, wifiHalf, 16, 16, WHITE); // poor signal
     }
-    else if ((x <= (-60)) && (x > (-70))) //good signal
+    else if ((x <= (-60)) && (x > (-70))) // good signal
     {
-      display.drawBitmap(112, 0, wifiMed, 16, 16, WHITE); //best signal
+      display.drawBitmap(112, 0, wifiMed, 16, 16, WHITE); // best signal
     }
     else if (x > (-60))
     {
-      display.drawBitmap(112, 0, wifiFull, 16, 16, WHITE); //excellent signal
+      display.drawBitmap(112, 0, wifiFull, 16, 16, WHITE); // excellent signal
     }
   }
 }
@@ -586,7 +597,7 @@ void showTime()
   if (Clock.getHour(h12Flag, pmFlag) < 10)
     display.print(0, DEC);
 
-  display.print(Clock.getHour(h12Flag, pmFlag)); //Time
+  display.print(Clock.getHour(h12Flag, pmFlag)); // Time
   display.print(":");
   if (Clock.getMinute() < 10)
     display.print(0, DEC);
@@ -636,7 +647,7 @@ void updateRTC()
   uint8_t dow = ti->tm_wday;
 
   Clock.setClockMode(false); // set to 24h
-  //setClockMode(true); // set to 12h
+  // setClockMode(true); // set to 12h
 
   Clock.setYear(year);
   Clock.setMonth(month);
@@ -652,9 +663,9 @@ void checkTimeFor(int onTime, int offTime, int number)
   int h = Clock.getHour(h12Flag, pmFlag);
   int m = Clock.getMinute();
 
-  int timeString = h * 100 + m; //if h=12 and m=23 then 12*100 + 23 = 1223 hours
+  int timeString = h * 100 + m; // if h=12 and m=23 then 12*100 + 23 = 1223 hours
 
-  if (offTime > onTime) //when off timing is greater than on timing
+  if (offTime > onTime) // when off timing is greater than on timing
   {
     if ((timeString > onTime) && (timeString < offTime))
     {
@@ -800,7 +811,6 @@ void relayStatusPrinter()
 
 void clientPage(WiFiClient client, String currentLine)
 {
-
   while (client.connected() && currentTime - previousTime <= timeoutTime)
   { // loop while the client's connected
     currentTime = millis();
@@ -878,14 +888,14 @@ void clientPage(WiFiClient client, String currentLine)
             R4Config = 0;
           else if (header.indexOf("GET /7/on") >= 0)
           {
-            //Serial.println("GPIO 4 off");
+            // Serial.println("GPIO 4 off");
             Relay4State = "on";
             R4Flag = 1;
             RELAY4ON;
           }
           else if (header.indexOf("GET /7/off") >= 0)
           {
-            //Serial.println("GPIO 4 off");
+            // Serial.println("GPIO 4 off");
             Relay4State = "off";
             R4Flag = 0;
             RELAY4OFF;
@@ -898,11 +908,13 @@ void clientPage(WiFiClient client, String currentLine)
             OLEDStatus = 1;
           else if (header.indexOf("GET /9/on") >= 0)
             OLEDStatus = 0;
+          else if (header.indexOf("GET /10/update") >= 0)
+            updateTime = 1;
 
           // Display the HTML web page
           client.print("<!DOCTYPE html><html lang=\"en\">");
           client.print("<head><meta charset=\"UTF-8\"><meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
-          client.print("<link rel=\"icon\" type=\"image/png\" href=\"favicon.png\">");
+          client.print("<meta http-equiv=\"refresh\" content=\"10\"><link rel=\"icon\" type=\"image/png\" href=\"favicon.png\">");
           client.print("<link href=\"https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css\" rel=\"stylesheet\" integrity=\"sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC\" crossorigin=\"anonymous\"/>");
           // CSS to style the on/off buttons
           // Feel free to change the background-color and font-size attributes to fit your preferences
@@ -981,8 +993,8 @@ void clientPage(WiFiClient client, String currentLine)
               client.print("<div class=\"col\"><p><a href=\"/9/on\"><button type=\"button\" class=\"btn btn-outline-success\">ON</button></a></p></div></div></div></div></div>");
           }
           else
-            client.print("<p><a href=\"/8/off\"><button type=\"button\" class=\"btn btn-outline-success\">Auto</button></a></p></div><div class=\"col\"><p><a href=\"\"><button type=\"button\" class=\"btn btn-outline-danger\" disabled>DISABLED</button></a></p></div></div></div></div></div>");
-
+            client.print("<p><a href=\"/8/off\"><button type=\"button\" class=\"btn btn-outline-success\">Auto</button></a></p></div><div class=\"col\"><p><a href=\"\"><button type=\"button\" class=\"btn btn-outline-danger\" disabled>DISABLED</button></a></p></div></div></div>");
+          client.print("<div class=\"col-6\"><p class=\"text-white bg-dark pl-1 pr-1 p-1\">Update Time</p><div class=\"row\"><div class=\"col\"><p><a href=\"/10/update\"><button type=\"button\" class=\"btn btn-outline-success\">Update</button></a> </p></div></div></div></div></div>");
           client.print("<script src=\"https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js\" integrity=\"sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM\" crossorigin=\"anonymous\"></script>");
           client.print("</body></html>");
 
@@ -995,7 +1007,7 @@ void clientPage(WiFiClient client, String currentLine)
         { // if you got a newline, then clear currentLine
           currentLine = "";
         }
-        //displays the page to client
+        // displays the page to client
       }
       else if (c != '\r')
       {                   // if you got anything else but a carriage return character,
