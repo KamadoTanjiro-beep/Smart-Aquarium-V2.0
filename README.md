@@ -2,15 +2,17 @@
 
 FOR ANY KIND OF QUESTIONS OR QUERIES PLEASE CONTACT ME HERE: https://aniketpatra.pythonanywhere.com/contact
 
-Using NodeMCU for aquarium lights control with OTA and WiFi signal level icons.
+Also, this code needs some optimisations (I believe that) so, if you have updated something and it works better then please let me know.
 
-I take no responsibility for the use of this code. Use it with your own risk.
+Using NodeMCU for aquarium lights, filter, skimmer, power head/wavemaker control with OTA updates, timers, auto time update, visual feedbacks and WiFi signal level icons.
 
-##It works as switches which turns something on or off. This can be applied to varied of things and can be expanded as automatic dosers, automatic water changes, etc (limited by your imagination😂).
+Disclaimer: I take absolutely no responsibility for the use of this code. Use it with your own risk.
+
+##It works as "switches" which turns something on or off automatically (by time). This can be applied to varied of things and can be expanded as automatic dosers, automatic water changes, etc (limited by your imagination).
 
 For DS3231 Library use https://github.com/NorthernWidget/DS3231/releases
 
-Rest of the libraries can be downloaded within Arduino IDE Libraries Manager, and some of them are already included. Please google for "how-to" if you cannot figure it out
+Rest of the libraries can be downloaded within Arduino IDE Libraries Manager, and some of them are already included (within Arduino). Please google for "how-to" if you cannot figure it .
 
 Please add http://arduino.esp8266.com/stable/package_esp8266com_index.json in File --> Preferences --> Additional Boards Manager URLs to get support for all ESP Boards.
 
@@ -24,7 +26,7 @@ D2 --> SDA <br/>
 3.3 --> VCC <br/>
 G --> GND <br/>
 
-Yes, connect both the I2C devices to the same pin (purpose of I2C). If you are facing I2C device address related issues then please Google it. It is very common and very easy to fix.
+Yes, connect both the I2C devices to the same pin (purpose of I2C). If you are facing I2C device address related issues then please Google it. It is very common and very easy to fix. You just need to adjust one or two resistor value.
 
 For the 4 Channel relay board
 
@@ -34,7 +36,7 @@ D5 --> In2 <br/>
 D6 --> In3 <br/>
 D7 --> In4 <br/>
 
-For GND and VCC, use appropriate separate power supply (don't take power from NodeMCU, may burn). If you are using separate powersupplies for NodeMCU and Relay, then make sure to connect both the GNDs of Node and Powersupply together, else the relay module won't work. If confused, take help from google.
+For GND and VCC, use appropriate separate power supply (don't take power from NodeMCU, may burn). If you are using separate powersupplies for NodeMCU and Relay, then make sure to connect both the GNDs of Node and Powersupply together, else the relay module won't work. If confused, take help from google or contact me.
 
 ##MAIN Parts: <br/>
 <img src="https://m.media-amazon.com/images/I/71TWos73PrL._SL1100_.jpg" alt="Relay Board" width="200" height="200"> <br/>
