@@ -32,6 +32,8 @@
    v1.9 Added option to update time via web-server and other updates
    v1.10 Added option to auto start relay (when off) and added visual message over screen when time is updating
    v1.11 Updated the UI of AutoTimers to give options for 5 min, 10min, 15 min, 25 min, 30 min, 45 min timers and other mild updates
+   v1.12 Added Power Saver Mode (Powerhead and Skimmer would automatically ON for 10 min then OFF for 10 min and so on) and like other features, these can be customised.
+   v1.121 Added security feature to automatically update time if rtc resets to 1970
 */
 
 #include <SPI.h>
@@ -53,7 +55,7 @@ bool pmFlag;
 
 #ifndef STASSID
 #define STASSID "XXXXXXXXXXXXX" // WIFI NAME/SSID
-#define STAPSK "YYYYYYYYYYY"    // WIFI PASSWORD
+#define STAPSK "YYYYYYYYY"     // WIFI PASSWORD
 #endif
 
 const char *ssid = STASSID;
@@ -196,17 +198,19 @@ void clientPage(WiFiClient, String);
 
 // relay gpio pins
 
-const int relayPin1 = 0;
-const int relayPin2 = 12;
-const int relayPin3 = 13;
-const int relayPin4 = 14;
+const byte relayPin1 = 0;
+const byte relayPin2 = 12;
+const byte relayPin3 = 13;
+const byte relayPin4 = 14;
 
 // status flags
 
-byte R1Flag = 0, R2Flag = 0, R3Flag = 0, R4Flag = 0;
-byte OLEDConfig = 1, R1Config = 1, R2Config = 1, R3Config = 1, R4Config = 1; // Config=1 means auto (based on timer),Config=0 means Manual. Same for aquarium light
-byte OLEDStatus = 1, updateTime = 0;                                         // Status = 1 means OLED DISPLAY is ON and reversed for 0 (works only if Config is 0)
+byte R1Flag = 0, R2Flag = 0, R3Flag = 0, R4Flag = 0, R1PowerSave = 0, R1PsAlt = 2, R2PowerSave = 0, R2PsAlt = 2; // R1PsAlt=2 means garbage state
+byte OLEDConfig = 0, R1Config = 1, R2Config = 1, R3Config = 1, R4Config = 1;                                     // Config=1 means auto (based on timer),Config=0 means Manual and Config=2 means PowSave. Same for aquarium light
+byte OLEDStatus = 1, updateTime = 0;                                                                             // Status = 1 means OLED DISPLAY is ON and reversed for 0 (works only if Config is 0)
 byte autoTimer1 = 0, autoTimer2 = 0, autoTimer3 = 0, autoTimer4 = 0;
+unsigned long R1PslastTime1 = 0, R2PslastTime1 = 0;
+long R1PstimerDelay1 = 0, R2PstimerDelay1 = 0;
 
 // Relay activation
 #define RELAY1 false // mark true to activate, and false to deactivate (activation means the timer activation)
@@ -215,7 +219,7 @@ byte autoTimer1 = 0, autoTimer2 = 0, autoTimer3 = 0, autoTimer4 = 0;
 #define RELAY4 true
 
 // Relay Timing and definitions
-#define RELAY1TIME 1100, 1900, 1 // first number is "ON" time in 24 hours. i.e. 2:35pm would be 1435, second one is turn "OFF" time, and the last one is Relay Number
+#define RELAY1TIME 1200, 1800, 1 // first number is "ON" time in 24 hours. i.e. 2:35pm would be 1435, second one is turn "OFF" time, and the last one is Relay Number
 #define RELAY1ON digitalWrite(relayPin1, HIGH)
 #define RELAY1OFF digitalWrite(relayPin1, LOW)
 
@@ -451,6 +455,90 @@ void loop()
   ArduinoOTA.handle();
   WiFiClient client = server.available(); // Listen for incoming clients
 
+  //****************************************RELAY POWERSAVE FEATURE********************************
+  // RELAY 1 10 min ON and 20 min OFF
+  if (R1PowerSave == 1)
+  {
+    R1PstimerDelay1 = 600000; // 10 mins
+    R1PslastTime1 = millis();
+    RELAY1ON;
+    R1PowerSave = 0;
+    R1PsAlt = 1;
+
+    R1Flag = 1;
+    Relay1State = "on";
+    R1Config = 2;
+  }
+
+  if (R1PsAlt == 1 && R1Config == 2)
+  {
+    if ((millis() - R1PslastTime1) > R1PstimerDelay1)
+    {
+      RELAY1OFF;
+      R1PsAlt = 0;
+      R1PstimerDelay1 = 1200000;
+      R1PslastTime1 = millis();
+
+      R1Flag = 0;
+      Relay1State = "off";
+    }
+  }
+  else if (R1PsAlt == 0 && R1Config == 2)
+  {
+    if ((millis() - R1PslastTime1) > R1PstimerDelay1)
+    {
+      RELAY1ON;
+      R1PsAlt = 1;
+      R1PstimerDelay1 = 600000;
+      R1PslastTime1 = millis();
+
+      R1Flag = 1;
+      Relay1State = "on";
+    }
+  }
+
+  // RELAY 2 10 min ON and 10 min OFF
+  if (R2PowerSave == 1)
+  {
+    R2PstimerDelay1 = 600000; // 10 mins
+    R2PslastTime1 = millis();
+    RELAY2ON;
+    R2PowerSave = 0;
+    R2PsAlt = 1;
+
+    R2Flag = 1;
+    Relay2State = "on";
+    R2Config = 2;
+  }
+
+  if (R2PsAlt == 1 && R2Config == 2)
+  {
+    if ((millis() - R2PslastTime1) > R2PstimerDelay1)
+    {
+      RELAY2OFF;
+      R2PsAlt = 0;
+      R2PstimerDelay1 = 600000;
+      R2PslastTime1 = millis();
+
+      R2Flag = 0;
+      Relay2State = "off";
+    }
+  }
+  else if (R2PsAlt == 0 && R2Config == 2)
+  {
+    if ((millis() - R2PslastTime1) > R2PstimerDelay1)
+    {
+      RELAY2ON;
+      R2PsAlt = 1;
+      R2PstimerDelay1 = 600000;
+      R2PslastTime1 = millis();
+
+      R2Flag = 1;
+      Relay2State = "on";
+    }
+  }
+  //**************************************END RELAY POWER SAVE FEATURE****************************************
+
   if (updateTime == 1)
   {
     updateRTC();
@@ -478,7 +566,7 @@ void loop()
     if (R1Config == 0)
     {
     }
-    else
+    else if (R1Config == 1)
     {
       if (RELAY1)
       {
@@ -488,7 +576,7 @@ void loop()
     if (R2Config == 0)
     {
     }
-    else
+    else if (R2Config == 1)
     {
       if (RELAY2)
       {
@@ -498,7 +586,7 @@ void loop()
     if (R3Config == 0)
     {
     }
-    else
+    else if (R3Config == 1)
     {
       if (RELAY3)
       {
@@ -508,7 +596,7 @@ void loop()
     if (R4Config == 0)
     {
     }
-    else
+    else if (R4Config == 1)
     {
       if (RELAY4)
       {
@@ -668,9 +756,12 @@ void showTime()
   display.setCursor(90, 25);
   display.print(Clock.getTemperature(), 1);
   display.println(" C");
+
+  if (Clock.getYear() == 70)
+    updateRTC();
 }
 
-void updateRTC()
+void updateRTC() 
 {
   display.clearDisplay();
   display.setCursor(30, 25);   // Start at top-left corner
@@ -896,7 +987,10 @@ void clientPage(WiFiClient client, String currentLine)
 
           // turns the GPIOs on and off
           if (header.indexOf("GET /0/on") >= 0)
+          {
             R1Config = 1;
+            autoTimer1 = 0;
+          }
           else if (header.indexOf("GET /0/off") >= 0)
             R1Config = 0;
           else if (header.indexOf("GET /1/on") >= 0)
@@ -913,7 +1007,10 @@ void clientPage(WiFiClient client, String currentLine)
             RELAY1OFF;
           }
           if (header.indexOf("GET /2/on") >= 0)
+          {
             R2Config = 1;
+            autoTimer2 = 0;
+          }
           else if (header.indexOf("GET /2/off") >= 0)
             R2Config = 0;
           else if (header.indexOf("GET /3/on") >= 0)
@@ -930,7 +1027,10 @@ void clientPage(WiFiClient client, String currentLine)
             RELAY2OFF;
           }
           if (header.indexOf("GET /4/on") >= 0)
+          {
             R3Config = 1;
+            autoTimer3 = 0;
+          }
           else if (header.indexOf("GET /4/off") >= 0)
             R3Config = 0;
           else if (header.indexOf("GET /5/on") >= 0)
@@ -947,7 +1047,10 @@ void clientPage(WiFiClient client, String currentLine)
             RELAY3OFF;
           }
           if (header.indexOf("GET /6/on") >= 0)
+          {
             R4Config = 1;
+            autoTimer4 = 0;
+          }
           else if (header.indexOf("GET /6/off") >= 0)
             R4Config = 0;
           else if (header.indexOf("GET /7/on") >= 0)
@@ -1119,6 +1222,26 @@ void clientPage(WiFiClient client, String currentLine)
             lastAutoTimer4 = millis();
             autoTimerDelay4 = 2700000;
           }
+          else if (header.indexOf("GET /ps1/on") >= 0)
+          {
+            autoTimer1 = 0; // turn off timer (if any)
+            R1PowerSave = 1;
+            R1Config = 2;
+          }
+          else if (header.indexOf("GET /ps1/off") >= 0)
+          {
+            R1Config = 1; // revert to auto
+          }
+          else if (header.indexOf("GET /ps2/on") >= 0)
+          {
+            autoTimer2 = 0; // turn off timer (if any)
+            R2PowerSave = 1;
+            R2Config = 2;
+          }
+          else if (header.indexOf("GET /ps2/off") >= 0)
+          {
+            R2Config = 1; // revert to auto
+          }
 
           // Display the HTML web page
           client.print("<!DOCTYPE html><html lang=\"en\">");
@@ -1135,38 +1258,69 @@ void clientPage(WiFiClient client, String currentLine)
           client.print("<body><div class=\"container\"><div class=\"row\"><h1 class=\"display-4 pb-3\"><u>Aquarium Web Server</u></h1>");
 
           // Display current state, and ON/OFF buttons for Relay 1
+          int tempSec = ((millis() - R1PslastTime1) / 1000);
+          int tempMin = ((millis() - R1PslastTime1) / 1000) / 60;
+          String tempTime;
+
+          if (tempSec <= 60)
+            tempTime = String(tempSec) + " sec(s)";
+          else
+            tempTime = String(tempMin) + "." + String(-(60 * tempMin - tempSec)) + " min(s)";
+
           if (autoTimer1 == 1)
             client.print("<div class=\"col-6\"><p class=\"text-white bg-dark pl-1 pr-1 p-1\">PowerHead - " + Relay1State + " &nbsp;&nbsp;<span class=\"badge alert-success\">Timer Active</span></p><div class=\"row\"><div class=\"col\">");
-          else
+          else if (R1Config == 0 || R1Config == 1)
             client.print("<div class=\"col-6\"><p class=\"text-white bg-dark pl-1 pr-1 p-1\">PowerHead - " + Relay1State + "</p><div class=\"row\"><div class=\"col\">");
-          // If the AQUA LIGHT is off, it displays the ON button
+          else if (R1Config == 2)
+            client.print("<div class=\"col-6\"><p class=\"text-white bg-dark pl-1 pr-1 p-1\">PowerHead - " + Relay1State + " &nbsp;&nbsp;<span class=\"badge alert-success\">P.S. Active - " + tempTime + "</span></p><div class=\"row\"><div class=\"col\">");
+
+          // If the POWERHEAD is off, it displays the ON button
           if (R1Config == 0)
           {
             client.print("<p><a href=\"/0/on\"><button type=\"button\" class=\"btn btn-outline-danger\">Manual</button></a></p></div>");
             if (Relay1State == "off")
               client.print("<div class=\"col\"><p><a href=\"/1/on\"><button type=\"button\" class=\"btn btn-outline-danger\">OFF</button></a></p></div><div class=\"col\"><select class=\"form-select form-select-sm\" aria-label=\".form-select-sm example\" onchange=myfunc(this,\"11\");><option value=\"0\" selected>Select Time</option><option value=\"5\">5 min</option><option value=\"10\">10 min</option><option value=\"15\">15 min</option><option value=\"25\">25 min</option><option value=\"30\">30 min</option><option value=\"45\">45 min</option></select><p><a href=\"\"><button type=\"button\" class=\"btn btn-outline-danger\" disabled>Choose time</button></a></p></div></div></div>");
             else
-              client.print("<div class=\"col\"><p><a href=\"/1/off\"><button type=\"button\" class=\"btn btn-outline-success\">ON</button></a></p></div></div></div>");
+              client.print("<div class=\"col\"><p><a href=\"/1/off\"><button type=\"button\" class=\"btn btn-outline-success\">ON</button></a></p></div><div class=\"col\"><p><a href=\"/ps1/on\"><button type=\"button\" class=\"btn btn-outline-success\">Pow. Save</button></a></p></div></div></div>");
           }
-          else
+          else if (R1Config == 1)
             client.print("<p><a href=\"/0/off\"><button type=\"button\" class=\"btn btn-outline-success\">Auto</button></a></p></div></div></div>");
+          else if (R1Config == 2)
+          {
+            client.print("<p><a href=\"/ps1/off\"><button type=\"button\" class=\"btn btn-outline-danger\">Turn Off Pow.Save</button></a></p></div></div></div>");
+          }
 
           // Display current state, and ON/OFF buttons for Relay 2
+          tempSec = ((millis() - R2PslastTime1) / 1000);
+          tempMin = ((millis() - R2PslastTime1) / 1000) / 60;
+
+          if (tempSec <= 60)
+            tempTime = String(tempSec) + " sec(s)";
+          else
+            tempTime = String(tempMin) + "." + String(-(60 * tempMin - tempSec)) + " min(s)";
+
           if (autoTimer2 == 1)
             client.print("<div class=\"col-6\"><p class=\"text-white bg-dark pl-1 pr-1 p-1\">Skimmer - " + Relay2State + " &nbsp;&nbsp;<span class=\"badge alert-success\">Timer Active</span></p><div class=\"row\"><div class=\"col\">");
-          else
+          else if (R2Config == 0 || R2Config == 1)
             client.print("<div class=\"col-6\"><p class=\"text-white bg-dark pl-1 pr-1 p-1\">Skimmer - " + Relay2State + "</p><div class=\"row\"><div class=\"col\">");
-          // If the output4State is off, it displays the ON button
+          else if (R2Config == 2)
+            client.print("<div class=\"col-6\"><p class=\"text-white bg-dark pl-1 pr-1 p-1\">Skimmer - " + Relay2State + " &nbsp;&nbsp;<span class=\"badge alert-success\">P.S. Active - " + tempTime + "</span></p><div class=\"row\"><div class=\"col\">");
+
+          // If the Skimmer is off, it displays the ON button
           if (R2Config == 0)
           {
             client.print("<p><a href=\"/2/on\"><button type=\"button\" class=\"btn btn-outline-danger\">Manual</button></a></p></div>");
             if (Relay2State == "off")
               client.print("<div class=\"col\"><p><a href=\"/3/on\"><button type=\"button\" class=\"btn btn-outline-danger\">OFF</button></a></p></div><div class=\"col\"><select class=\"form-select form-select-sm\" aria-label=\".form-select-sm example\" onchange=myfunc(this,\"12\");><option value=\"0\" selected>Select Time</option><option value=\"5\">5 min</option><option value=\"10\">10 min</option><option value=\"15\">15 min</option><option value=\"25\">25 min</option><option value=\"30\">30 min</option><option value=\"45\">45 min</option></select><p><a href=\"\"><button type=\"button\" class=\"btn btn-outline-danger\" disabled>Choose time</button></a></p></div></div></div>");
             else
-              client.print("<div class=\"col\"><p><a href=\"/3/off\"><button type=\"button\" class=\"btn btn-outline-success\">ON</button></a></p></div></div></div>");
+              client.print("<div class=\"col\"><p><a href=\"/3/off\"><button type=\"button\" class=\"btn btn-outline-success\">ON</button></a></p></div><div class=\"col\"><p><a href=\"/ps2/on\"><button type=\"button\" class=\"btn btn-outline-success\">Pow. Save</button></a></p></div></div></div>");
           }
-          else
+          else if (R2Config == 1)
             client.print("<p><a href=\"/2/off\"><button type=\"button\" class=\"btn btn-outline-success\">Auto</button></a></p></div></div></div>");
+          else if (R2Config == 2)
+          {
+            client.print("<p><a href=\"/ps2/off\"><button type=\"button\" class=\"btn btn-outline-danger\">Turn Off Pow.Save</button></a></p></div></div></div>");
+          }
 
           // Display current state, and ON/OFF buttons for Relay3
           if (autoTimer3 == 1)
