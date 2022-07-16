@@ -54,8 +54,8 @@ bool h12Flag = false;
 bool pmFlag;
 
 #ifndef STASSID
-#define STASSID "SonyBraviaX400" // WIFI NAME/SSID
-#define STAPSK "79756622761"     // WIFI PASSWORD
+#define STASSID "XXXXXXXXXXXXXX" // WIFI NAME/SSID
+#define STAPSK "YYYYYYYYYYYYYYY"     // WIFI PASSWORD
 #endif
 
 const char *ssid = STASSID;
