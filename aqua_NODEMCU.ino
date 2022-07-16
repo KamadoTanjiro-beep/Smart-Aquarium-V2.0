@@ -54,8 +54,8 @@ bool h12Flag = false;
 bool pmFlag;
 
 #ifndef STASSID
-#define STASSID "XXXXXXXXXXXXX" // WIFI NAME/SSID
-#define STAPSK "YYYYYYYYY"     // WIFI PASSWORD
+#define STASSID "SonyBraviaX400" // WIFI NAME/SSID
+#define STAPSK "79756622761"     // WIFI PASSWORD
 #endif
 
 const char *ssid = STASSID;
@@ -219,7 +219,7 @@ long R1PstimerDelay1 = 0, R2PstimerDelay1 = 0;
 #define RELAY4 true
 
 // Relay Timing and definitions
-#define RELAY1TIME 1200, 1800, 1 // first number is "ON" time in 24 hours. i.e. 2:35pm would be 1435, second one is turn "OFF" time, and the last one is Relay Number
+#define RELAY1TIME 1200, 1900, 1 // first number is "ON" time in 24 hours. i.e. 2:35pm would be 1435, second one is turn "OFF" time, and the last one is Relay Number
 #define RELAY1ON digitalWrite(relayPin1, HIGH)
 #define RELAY1OFF digitalWrite(relayPin1, LOW)
 
@@ -231,7 +231,7 @@ long R1PstimerDelay1 = 0, R2PstimerDelay1 = 0;
 #define RELAY3ON digitalWrite(relayPin3, HIGH)
 #define RELAY3OFF digitalWrite(relayPin3, LOW)
 
-#define RELAY4TIME 1100, 1700, 4
+#define RELAY4TIME 1200, 1900, 4
 #define RELAY4ON digitalWrite(relayPin4, HIGH)
 #define RELAY4OFF digitalWrite(relayPin4, LOW)
 
@@ -476,7 +476,7 @@ void loop()
     {
       RELAY1OFF;
       R1PsAlt = 0;
-      R1PstimerDelay1 = 1200000;
+      R1PstimerDelay1 = 600000;
       R1PslastTime1 = millis();
 
       R1Flag = 0;
@@ -1258,21 +1258,14 @@ void clientPage(WiFiClient client, String currentLine)
           client.print("<body><div class=\"container\"><div class=\"row\"><h1 class=\"display-4 pb-3\"><u>Aquarium Web Server</u></h1>");
 
           // Display current state, and ON/OFF buttons for Relay 1
-          int tempSec = ((millis() - R1PslastTime1) / 1000);
-          int tempMin = ((millis() - R1PslastTime1) / 1000) / 60;
-          String tempTime;
-
-          if (tempSec <= 60)
-            tempTime = String(tempSec) + " sec(s)";
-          else
-            tempTime = String(tempMin) + "." + String(-(60 * tempMin - tempSec)) + " min(s)";
+          int tempSec = ((millis() - R1PslastTime1) / 1000);         
 
           if (autoTimer1 == 1)
             client.print("<div class=\"col-6\"><p class=\"text-white bg-dark pl-1 pr-1 p-1\">PowerHead - " + Relay1State + " &nbsp;&nbsp;<span class=\"badge alert-success\">Timer Active</span></p><div class=\"row\"><div class=\"col\">");
           else if (R1Config == 0 || R1Config == 1)
             client.print("<div class=\"col-6\"><p class=\"text-white bg-dark pl-1 pr-1 p-1\">PowerHead - " + Relay1State + "</p><div class=\"row\"><div class=\"col\">");
           else if (R1Config == 2)
-            client.print("<div class=\"col-6\"><p class=\"text-white bg-dark pl-1 pr-1 p-1\">PowerHead - " + Relay1State + " &nbsp;&nbsp;<span class=\"badge alert-success\">P.S. Active - " + tempTime + "</span></p><div class=\"row\"><div class=\"col\">");
+            client.print("<div class=\"col-6\"><p class=\"text-white bg-dark pl-1 pr-1 p-1\">PowerHead - <span id=\"timer1Cond\">" + Relay1State + "</span> &nbsp;&nbsp;<span class=\"badge alert-success\">P.S. Active - <span id=\"timer1\">" + String(tempSec) + "</span></span></p><div class=\"row\"><div class=\"col\">");
 
           // If the POWERHEAD is off, it displays the ON button
           if (R1Config == 0)
@@ -1292,19 +1285,13 @@ void clientPage(WiFiClient client, String currentLine)
 
           // Display current state, and ON/OFF buttons for Relay 2
           tempSec = ((millis() - R2PslastTime1) / 1000);
-          tempMin = ((millis() - R2PslastTime1) / 1000) / 60;
-
-          if (tempSec <= 60)
-            tempTime = String(tempSec) + " sec(s)";
-          else
-            tempTime = String(tempMin) + "." + String(-(60 * tempMin - tempSec)) + " min(s)";
 
           if (autoTimer2 == 1)
             client.print("<div class=\"col-6\"><p class=\"text-white bg-dark pl-1 pr-1 p-1\">Skimmer - " + Relay2State + " &nbsp;&nbsp;<span class=\"badge alert-success\">Timer Active</span></p><div class=\"row\"><div class=\"col\">");
           else if (R2Config == 0 || R2Config == 1)
             client.print("<div class=\"col-6\"><p class=\"text-white bg-dark pl-1 pr-1 p-1\">Skimmer - " + Relay2State + "</p><div class=\"row\"><div class=\"col\">");
           else if (R2Config == 2)
-            client.print("<div class=\"col-6\"><p class=\"text-white bg-dark pl-1 pr-1 p-1\">Skimmer - " + Relay2State + " &nbsp;&nbsp;<span class=\"badge alert-success\">P.S. Active - " + tempTime + "</span></p><div class=\"row\"><div class=\"col\">");
+            client.print("<div class=\"col-6\"><p class=\"text-white bg-dark pl-1 pr-1 p-1\">Skimmer - " + Relay2State + " &nbsp;&nbsp;<span class=\"badge alert-success\">P.S. Active - <span id=\"timer2\">" + String(tempSec) + "</span></span></p><div class=\"row\"><div class=\"col\">");
 
           // If the Skimmer is off, it displays the ON button
           if (R2Config == 0)
@@ -1372,6 +1359,7 @@ void clientPage(WiFiClient client, String currentLine)
           client.print("<div class=\"col-6\"><p class=\"text-white bg-dark pl-1 pr-1 p-1\">Update Time</p><div class=\"row\"><div class=\"col\"><p><a href=\"/10/update\"><button type=\"button\" class=\"btn btn-outline-success\">Update</button></a> </p></div></div></div></div></div>");
           client.print("<script src=\"https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js\" integrity=\"sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM\" crossorigin=\"anonymous\"></script>");
           client.print("<script>function myfunc(x, y) {time = x.value;newString = \"Auto start in \" + time + \" mins\";nextSibling = x.nextElementSibling;button = nextSibling.lastElementChild.lastElementChild;newHref = nextSibling.lastElementChild;if (time == '0') {button.innerHTML = \"Choose time\";button.disabled = true;newHref.href = \"\";}else {button.disabled = false; button.innerHTML = newString; newHref.href = '/' + y + '/' + time;} }</script>");
+          client.print("<script>time2Function();var x=document.getElementById(\"timer2\"),y=parseInt(x.innerHTML);function time2Function(){var t=0;setInterval((function(){var n=new Date;secs=n.getSeconds(),t!=secs&&(y+=1,t=secs,600==y&&(y=0));var e=\" \",r=Math.floor(y/60);e=0==r?\" sec\":\" min\",r<10&&(r=\"0\"+r.toString());var i=y-60*r;i<10&&(i=\"0\"+i.toString()),x.innerHTML=r.toString()+\".\"+i.toString()+e}),900)}time1Function();var a=document.getElementById(\"timer1\"),b=parseInt(a.innerHTML),c=document.getElementById(\"timer1Cond\").innerHTML;function time1Function(){var n=0;setInterval((function(){var t=new Date;secs=t.getSeconds(),n!=secs&&(b+=1,n=secs,600==b&&(b=0));var e=\" \",r=Math.floor(b/60);e=0==r?\" sec\":\" min\",r<10&&(r=\"0\"+r.toString());var i=b-60*r;i<10&&(i=\"0\"+i.toString()),a.innerHTML=r.toString()+\".\"+i.toString()+e}),900)}</script>");
           client.print("</body></html>");
 
           // The HTTP response ends with another blank line
