@@ -47,6 +47,7 @@
 #include <NTPClient.h>
 #include <DS3231.h>
 #include <string.h>
+#include "global.h" //remove this
 
 DS3231 Clock;
 bool century = false;
@@ -54,12 +55,12 @@ bool h12Flag = false;
 bool pmFlag;
 
 #ifndef STASSID
-#define STASSID "XXXXXXXXXXXXXX" // WIFI NAME/SSID
-#define STAPSK "YYYYYYYYYYYYYYY"     // WIFI PASSWORD
+#define STASSID "YOUR_SSID"    // WIFI NAME/SSID
+#define STAPSK "YOUR_PASSWORD" // WIFI PASSWORD
 #endif
 
-const char *ssid = STASSID;
-const char *password = STAPSK;
+const char *ssid = pssid;     // remove "pssid" and write "STASSID"
+const char *password = ppass; // remove "ppass" and write "STAPSK"
 
 // Set web server port number to 80
 WiFiServer server(80);
@@ -429,25 +430,41 @@ void setup()
   ArduinoOTA.begin();
   // OTA UPDATE END
 
-  display.clearDisplay();
-  display.setTextSize(2);
-  display.setCursor(0, 0); // Start at top-left corner
-  display.println(F("Connected!"));
-  display.setTextSize(1);
-  display.println("");
-  display.println(WiFi.SSID());
-  display.print("\nIP address:\n");
-  display.println(WiFi.localIP());
-  display.display();
-  delay(2000);
   // checks if wifi connected
   if (count == 0)
   {
+    display.clearDisplay();
+    display.setTextSize(2);
+    display.setCursor(0, 0); // Start at top-left corner
+    display.println(F("Connected!"));
+    display.setTextSize(1);
+    display.println("");
+    display.println(WiFi.SSID());
+    display.print("\nIP address:\n");
+    display.println(WiFi.localIP());
+    display.display();
+
+    delay(4000);
+    display.clearDisplay();
+    display.setCursor(0, 0);
+
     timeClient.begin(); // NTP time
     timeClient.update();
+
+    display.println(F("Started Time Client"));
+    display.display();
+    delay(2000);
+    display.clearDisplay();
+
     updateRTC();
+    display.clearDisplay();
+
+    server.begin();
+    display.println(F("Server Started!"));
+    display.display();
+    delay(2000);
+    display.clearDisplay();
   }
-  server.begin();
 }
 
 void loop()
@@ -739,10 +756,11 @@ void showTime()
   if (Clock.getMinute() < 10)
     display.print(0, DEC);
   display.print(Clock.getMinute());
-  display.print(":");
-  if (Clock.getSecond() < 10)
-    display.print(0, DEC);
-  display.println(Clock.getSecond());
+  // display.print(":");
+  // if (Clock.getSecond() < 10)
+  // display.print(0, DEC);
+  // display.println(Clock.getSecond());
+  display.println(" ");
 
   display.setTextSize(1);
   display.print(week[Clock.getDoW()]);
@@ -761,7 +779,7 @@ void showTime()
     updateRTC();
 }
 
-void updateRTC() 
+void updateRTC()
 {
   display.clearDisplay();
   display.setCursor(30, 25);   // Start at top-left corner
@@ -1258,7 +1276,7 @@ void clientPage(WiFiClient client, String currentLine)
           client.print("<body><div class=\"container\"><div class=\"row\"><h1 class=\"display-4 pb-3\"><u>Aquarium Web Server</u></h1>");
 
           // Display current state, and ON/OFF buttons for Relay 1
-          int tempSec = ((millis() - R1PslastTime1) / 1000);         
+          int tempSec = ((millis() - R1PslastTime1) / 1000);
 
           if (autoTimer1 == 1)
             client.print("<div class=\"col-6\"><p class=\"text-white bg-dark pl-1 pr-1 p-1\">PowerHead - " + Relay1State + " &nbsp;&nbsp;<span class=\"badge alert-success\">Timer Active</span></p><div class=\"row\"><div class=\"col\">");
