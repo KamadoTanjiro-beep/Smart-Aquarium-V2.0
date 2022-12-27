@@ -1,6 +1,6 @@
 # Aquarium Automation using NodeMCU 12E
 
-FOR ANY KIND OF QUESTIONS OR QUERIES PLEASE CONTACT ME HERE: https://aniketpatra.pythonanywhere.com/contact
+FOR ANY KIND OF QUESTIONS OR QUERIES PLEASE CONTACT ME HERE: https://thingsbypatra.pythonanywhere.com/contact
 
 Also, this code needs some optimisations (I believe that) so, if you have updated something and it works better then please let me know.
 
